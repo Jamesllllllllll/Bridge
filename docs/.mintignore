@@ -1,0 +1,5 @@
+# Publish only pages that have been approved for the Mintlify pilot.
+*
+!.mintignore
+!docs.json
+!index.mdx

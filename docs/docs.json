@@ -1,0 +1,36 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Bridge",
+  "colors": {
+    "primary": "#6B8FCB"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Overview",
+        "pages": ["index"]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Chorus Encore",
+        "href": "https://www.enchor.us/"
+      }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/Geomitron/Bridge"
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view"]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Geomitron/Bridge"
+    }
+  }
+}
