@@ -1,5 +1,9 @@
-import { Component, inject, signal } from '@angular/core'
+import { Component, effect, inject, signal, untracked } from '@angular/core'
 import { Router, RouterOutlet } from '@angular/router'
+import { firstValueFrom } from 'rxjs'
+import { ChartLinkQueue } from '../../src-shared/ChartLinkQueue'
+import { ChartData } from '../../src-shared/interfaces/search.interface'
+import { DownloadService } from './core/services/download.service'
 
 import { ToolbarComponent } from './components/toolbar/toolbar.component'
 import { SearchService } from './core/services/search.service'
@@ -18,34 +22,40 @@ export class AppComponent {
 	private router = inject(Router)
 
 	settingsLoaded = signal(false)
-	private pendingChartDeepLink: string | null = null
+	private downloadService = inject(DownloadService)
+	linkMessage = signal('')
+	retryHash = signal<string | null>(null)
+	private linkedCharts = new ChartLinkQueue<ChartData>({
+		ready: () => this.settingsLoaded() && Boolean(this.settingsService.defaultLibraryPath),
+		resolve: async hash => {
+			await this.router.navigate(['/browse'])
+			return (await firstValueFrom(this.searchService.searchByHash(hash))).data
+		},
+		download: chart => this.downloadService.addDownload(chart),
+		status: (message, retryHash) => {
+			this.linkMessage.set(message)
+			this.retryHash.set(retryHash ?? null)
+		},
+	})
 
 	constructor() {
-		window.electron.on.chartDeepLink(chartHash => {
-			this.pendingChartDeepLink = chartHash
-			if (this.settingsLoaded()) {
-				void this.openChartDeepLink()
+		window.electron.on.chartDeepLink(hash => this.acceptChartLink(hash))
+		effect(() => {
+			if (this.settingsLoaded() && this.settingsService.defaultLibraryPath) {
+				untracked(() => { void this.linkedCharts.drain() })
 			}
 		})
 
-		// Ensure settings are loaded before rendering the application
-		this.settingsService.loadSettings()
-			.then(async () => {
-				// Pull startup links after the renderer listener is ready.
-				const initialChartDeepLink = await window.electron.invoke.getPendingChartDeepLink()
-				if (!this.pendingChartDeepLink) {
-					this.pendingChartDeepLink = initialChartDeepLink
-				}
-				console.log('[DEBUG] Setting settingsLoaded = true')
-				this.settingsLoaded.set(true)
-				console.log('[DEBUG] settingsLoaded:', this.settingsLoaded())
-				if (this.pendingChartDeepLink) {
-					void this.openChartDeepLink()
-				} else {
-					this.searchService.search().subscribe()
-				}
-			})
-			.catch(err => console.error('Failed to load settings:', err))
+		this.settingsService.loadSettings().then(async () => {
+			// Subscribe before draining the main-process startup queue.
+			this.settingsLoaded.set(true)
+			const initialLinks = await window.electron.invoke.getPendingChartDeepLink()
+			for (const hash of initialLinks) this.acceptChartLink(hash)
+			if (!initialLinks.length && !this.linkMessage()) {
+				this.searchService.search().subscribe()
+			}
+			void this.linkedCharts.drain()
+		}).catch(err => console.error('Failed to load settings:', err))
 
 		document.addEventListener('keydown', event => {
 			if (event.ctrlKey && (event.key === '+' || event.key === '-' || event.key === '=' || event.key === '0')) {
@@ -71,12 +81,17 @@ export class AppComponent {
 		})
 	}
 
-	private async openChartDeepLink(): Promise<void> {
-		const chartHash = this.pendingChartDeepLink
-		this.pendingChartDeepLink = null
-		if (!chartHash) return
+	private acceptChartLink(hash: string) {
+		this.linkedCharts.add(hash)
+		if (this.settingsLoaded() && !this.settingsService.defaultLibraryPath) {
+			this.linkMessage.set('Choose a library folder in Settings to start your linked downloads.')
+			void this.router.navigate(['/settings'])
+		}
+		void this.linkedCharts.drain()
+	}
 
-		await this.router.navigate(['/browse'])
-		this.searchService.searchByHash(chartHash).subscribe()
+	retryChartLink() {
+		const hash = this.retryHash()
+		if (hash) this.acceptChartLink(hash)
 	}
 }

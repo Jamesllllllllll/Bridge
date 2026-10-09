@@ -22,7 +22,7 @@ export interface ContextBridgeApi {
 export interface IpcInvokeEvents {
 	getPendingChartDeepLink: {
 		input: void
-		output: string | null
+		output: string[]
 	}
 	getSettings: {
 		input: void

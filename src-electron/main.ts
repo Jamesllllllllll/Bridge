@@ -20,7 +20,10 @@ export let mainWindow: BrowserWindow
 const args = process.argv.slice(1)
 const isDevBuild = args.some(val => val === '--dev')
 const protocol = 'bridge'
-let pendingChartDeepLink = findChartDeepLink(process.argv)
+const pendingChartDeepLinks = new Set<string>()
+const initialChartDeepLink = findChartDeepLink(process.argv)
+if (initialChartDeepLink) pendingChartDeepLinks.add(initialChartDeepLink)
+let deepLinkRendererReady = false
 
 registerProtocol()
 restrictToSingleInstance()
@@ -114,6 +117,7 @@ async function createBridgeWindow() {
 	mainWindow.on('unmaximize', () => emitIpcEvent('minimized', undefined))
 	mainWindow.on('maximize', () => emitIpcEvent('maximized', undefined))
 
+	mainWindow.webContents.on('did-start-loading', () => { deepLinkRendererReady = false })
 	// Load angular app
 	await loadWindow()
 
@@ -124,20 +128,17 @@ async function createBridgeWindow() {
 
 function queueChartDeepLink(chartHash: string | null) {
 	if (!chartHash) return
-	pendingChartDeepLink = chartHash
-	deliverPendingChartDeepLink()
-}
-
-function deliverPendingChartDeepLink() {
-	if (!pendingChartDeepLink || !mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isLoading()) return
-	emitIpcEvent('chartDeepLink', pendingChartDeepLink)
-	pendingChartDeepLink = null
+	pendingChartDeepLinks.add(chartHash)
+	if (!deepLinkRendererReady || !mainWindow || mainWindow.isDestroyed()) return
+	for (const hash of pendingChartDeepLinks) emitIpcEvent('chartDeepLink', hash)
+	pendingChartDeepLinks.clear()
 }
 
 export async function takePendingChartDeepLink() {
-	const chartHash = pendingChartDeepLink
-	pendingChartDeepLink = null
-	return chartHash
+	deepLinkRendererReady = true
+	const hashes = [...pendingChartDeepLinks]
+	pendingChartDeepLinks.clear()
+	return hashes
 }
 
 /**

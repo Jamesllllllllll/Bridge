@@ -1,56 +1,26 @@
-name: Build on PR
+name: Verify Windows installer
 on:
   pull_request:
-    types: ["opened"]
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  build-windows:
+  windows:
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: v18.19.0
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build the app
-        shell: bash
-        run: |
-          npm ci
-          npm run build:windows
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:windows -- --publish never
+      - run: npm run test:installed
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          node-version: v18.19.0
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Fix apt and install builder dependencies
-        shell: bash
-        run: |
-          sudo rm /var/lib/apt/lists/* || true
-          sudo apt update
-          sudo apt install flatpak -y
-          sudo apt install flatpak-builder -y
-          sudo apt install elfutils -y
-          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-      - name: Build the app
-        shell: bash
-        run: |
-          npm ci
-          npm run build:linux
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: v18.19.0
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build the app
-        shell: bash
-        run: |
-          npm ci
-          npm run build:mac
+          name: installed-bridge-verification
+          path: output/playwright/

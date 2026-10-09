@@ -164,7 +164,7 @@ export class SettingsComponent implements OnInit {
 			window.electron.emit.quitAndInstall()
 		} else if (!this.updateDownloading()) {
 			if (await window.electron.invoke.getPlatform() === 'darwin') { // Thanks Apple...
-				this.openUrl('https://github.com/Geomitron/Bridge/releases/latest')
+				this.openUrl('https://github.com/Jamesllllllllll/Bridge/releases/latest')
 			} else {
 				this.updateDownloading.set(true)
 				window.electron.emit.downloadUpdate()

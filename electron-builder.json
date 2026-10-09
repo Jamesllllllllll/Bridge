@@ -1,52 +1,73 @@
 {
-	"productName": "Bridge",
-	"directories": {
-		"output": "release/"
-	},
-	"files": [
-		"dist/**/*"
-	],
-	"protocols": [
-		{
-			"name": "Bridge chart link",
-			"schemes": [
-				"bridge"
-			]
-		}
-	],
-	"publish": {
-		"provider": "github",
-		"releaseType": "release"
-	},
-	"nsis": {
-		"oneClick": false,
-		"allowToChangeInstallationDirectory": true,
-		"deleteAppDataOnUninstall": true,
-		"shortcutName": "Bridge"
-	},
-	"win": {
-		"icon": "dist/angular/browser/assets/images/system/icons/win/icon.ico",
-		"compression": "store",
-		"artifactName": "Bridge-Setup-${version}.${ext}"
-	},
-	"mac": {
-		"category": "public.app-category.utilities",
-		"target": [
-			{
-				"target": "dmg",
-				"arch": [
-					"universal"
-				]
-			}
-		],
-		"icon": "dist/angular/browser/assets/images/system/icons/mac/icon.icns"
-	},
-	"linux": {
-		"compression": "maximum",
-		"target": [
-			"AppImage",
-			"flatpak"
-		],
-		"category": "utility"
-	}
+  "productName": "Bridge",
+  "directories": {
+    "output": "release/"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "protocols": [
+    {
+      "name": "Bridge chart link",
+      "schemes": [
+        "bridge"
+      ]
+    }
+  ],
+  "publish": {
+    "provider": "github",
+    "releaseType": "release",
+    "owner": "Jamesllllllllll",
+    "repo": "Bridge"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false,
+    "shortcutName": "Bridge"
+  },
+  "win": {
+    "icon": "dist/angular/browser/assets/images/system/icons/win/icon.ico",
+    "compression": "store",
+    "artifactName": "Bridge-RockList-Setup-${version}.${ext}",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "mac": {
+    "category": "public.app-category.utilities",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": [
+          "universal"
+        ]
+      }
+    ],
+    "icon": "dist/angular/browser/assets/images/system/icons/mac/icon.icns"
+  },
+  "linux": {
+    "compression": "maximum",
+    "target": [
+      "AppImage",
+      "flatpak"
+    ],
+    "category": "utility"
+  },
+  "appId": "com.electron.bridge",
+  "extraFiles": [
+    {
+      "from": "LICENSE",
+      "to": "LICENSE.Bridge.txt"
+    },
+    {
+      "from": "NOTICE.md",
+      "to": "NOTICE.Bridge.md"
+    }
+  ]
 }
