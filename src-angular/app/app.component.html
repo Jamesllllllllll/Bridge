@@ -1,6 +1,15 @@
 @if (settingsLoaded()) {
 	<div class="flex flex-col h-screen">
 		<app-toolbar />
+		@if (linkMessage()) {
+			<div class="flex items-center gap-3 px-4 py-2 bg-base-200 text-sm" role="status">
+				<span class="flex-1">{{ linkMessage() }}</span>
+				@if (retryHash()) {
+					<button class="btn btn-sm" (click)="retryChartLink()">Retry</button>
+				}
+				<button class="btn btn-ghost btn-sm" (click)="linkMessage.set('')">Dismiss</button>
+			</div>
+		}
 		<router-outlet />
 	</div>
 }

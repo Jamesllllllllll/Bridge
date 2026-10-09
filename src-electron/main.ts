@@ -4,8 +4,9 @@ import windowStateKeeper from 'electron-window-state'
 import * as path from 'path'
 import * as url from 'url'
 
-import { IpcFromMainEmitEvents } from '../src-shared/interfaces/ipc.interface.js'
+import type { IpcFromMainEmitEvents } from '../src-shared/interfaces/ipc.interface.js'
 import { dataPath } from '../src-shared/Paths.js'
+import { findChartDeepLink, parseChartDeepLink } from './DeepLink.js'
 import { settings } from './ipc/SettingsHandler.ipc.js'
 import { retryUpdate } from './ipc/UpdateHandler.ipc.js'
 import { getIpcInvokeHandlers, getIpcToMainEmitHandlers } from './IpcHandler.js'
@@ -18,15 +19,33 @@ const _dirname = path.dirname(_filename)
 export let mainWindow: BrowserWindow
 const args = process.argv.slice(1)
 const isDevBuild = args.some(val => val === '--dev')
+const protocol = 'bridge'
+const pendingChartDeepLinks = new Set<string>()
+const initialChartDeepLink = findChartDeepLink(process.argv)
+if (initialChartDeepLink) pendingChartDeepLinks.add(initialChartDeepLink)
+let deepLinkRendererReady = false
 
+registerProtocol()
 restrictToSingleInstance()
 handleOSXWindowClosed()
+app.on('open-url', (event, deepLinkUrl) => {
+	event.preventDefault()
+	queueChartDeepLink(parseChartDeepLink(deepLinkUrl))
+})
 app.on('ready', async () => {
 	createBridgeWindow()
 	if (!isDevBuild) {
 		retryUpdate()
 	}
 })
+
+function registerProtocol() {
+	if (isDevBuild && process.argv[1]) {
+		app.setAsDefaultProtocolClient(protocol, process.execPath, [path.resolve(process.argv[1])])
+	} else {
+		app.setAsDefaultProtocolClient(protocol)
+	}
+}
 
 /**
  * Only allow a single Bridge window to be open at any one time.
@@ -35,7 +54,8 @@ app.on('ready', async () => {
 function restrictToSingleInstance() {
 	const isFirstBridgeInstance = app.requestSingleInstanceLock()
 	if (!isFirstBridgeInstance) app.quit()
-	app.on('second-instance', () => {
+	app.on('second-instance', (_event, commandLine) => {
+		queueChartDeepLink(findChartDeepLink(commandLine))
 		if (mainWindow !== undefined) {
 			if (mainWindow.isMinimized()) mainWindow.restore()
 			mainWindow.focus()
@@ -86,7 +106,7 @@ async function createBridgeWindow() {
 	mainWindow.webContents.setZoomFactor(settings.zoomFactor)
 
 	// IPC handlers
-	for (const [key, handler] of Object.entries(getIpcInvokeHandlers())) {
+	for (const [key, handler] of Object.entries(getIpcInvokeHandlers(takePendingChartDeepLink))) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		ipcMain.handle(key, (_event, ...args) => (handler as any)(args[0]))
 	}
@@ -97,12 +117,31 @@ async function createBridgeWindow() {
 	mainWindow.on('unmaximize', () => emitIpcEvent('minimized', undefined))
 	mainWindow.on('maximize', () => emitIpcEvent('maximized', undefined))
 
+	// In-app navigation keeps the renderer and its IPC listener alive.
+	mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+		if (isMainFrame && !isInPlace) deepLinkRendererReady = false
+	})
 	// Load angular app
 	await loadWindow()
 
 	if (isDevBuild) {
 		mainWindow.webContents.openDevTools()
 	}
+}
+
+function queueChartDeepLink(chartHash: string | null) {
+	if (!chartHash) return
+	pendingChartDeepLinks.add(chartHash)
+	if (!deepLinkRendererReady || !mainWindow || mainWindow.isDestroyed()) return
+	for (const hash of pendingChartDeepLinks) emitIpcEvent('chartDeepLink', hash)
+	pendingChartDeepLinks.clear()
+}
+
+export async function takePendingChartDeepLink() {
+	deepLinkRendererReady = true
+	const hashes = [...pendingChartDeepLinks]
+	pendingChartDeepLinks.clear()
+	return hashes
 }
 
 /**
