@@ -94,7 +94,8 @@ async function openLink(hash) {
     const result = spawnSync('powershell.exe',['-NoProfile','-Command',`Start-Process 'bridge://chart/${hash}'`],{encoding:'utf8',timeout:15000})
     assert.equal(result.status,0,result.stderr)
   } else {
-    spawnSync(executablePath,[`--user-data-dir=${userData}`,`bridge://chart/${hash}`],{timeout:15000})
+    const result=spawnSync(executablePath,['--no-sandbox',`--user-data-dir=${userData}`,`bridge://chart/${hash}`],{timeout:15000,encoding:'utf8'})
+    assert.equal(result.status,0,result.stderr)
   }
 }
 try {
@@ -102,7 +103,7 @@ try {
   await page.getByRole('status').filter({hasText:'Choose a library folder'}).waitFor()
   // A second startup/setup link must not replace the first pending link.
   await openLink(hashes[1])
-  await page.getByRole('button',{name:'Add Library Folder',exact:true}).click()
+  await page.getByRole('button',{name:/Add Library Folder/}).click()
   await waitFile('a'); await waitFile('b')
   assert.equal(await page.evaluate(async ()=>(await window.electron.invoke.getSettings()).volume),17)
   await openLink(hashes[2]); await waitFile('c')

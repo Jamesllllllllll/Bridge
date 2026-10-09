@@ -24,7 +24,8 @@
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "deleteAppDataOnUninstall": false,
-    "shortcutName": "Bridge"
+    "shortcutName": "Bridge",
+    "include": "build/protocol.nsh"
   },
   "win": {
     "icon": "dist/angular/browser/assets/images/system/icons/win/icon.ico",
