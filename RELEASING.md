@@ -1,6 +1,6 @@
 # Windows releases
 
-Use Node 22.12 or newer and Windows x64. Keep the package name `bridge`, product
+Use Node 24 and npm 11.12.1 on Windows x64. Keep the package name `bridge`, product
 name `Bridge`, and app ID `com.electron.bridge` stable so the existing installation
 and user-data directory remain compatible. Do not enable deletion of app data
 on uninstall. Public release titles and installer filenames identify the RockList

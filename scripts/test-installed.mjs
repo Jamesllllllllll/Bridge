@@ -33,7 +33,12 @@ if (!executablePath) {
   assert.ok((await readFile(join(installDir,'LICENSE.Bridge.txt'),'utf8')).includes('GNU GENERAL PUBLIC LICENSE'))
 }
 const hashes = ['a','b','c','d'].map(c => c.repeat(32))
-const fixtureBytes = Array.from(Buffer.alloc(4096,42))
+const chartText = '[Song]\n{\n  Name = "Bridge fixture"\n  Resolution = 192\n}\n' + '\n'.repeat(4096)
+function uint64(value) { const bytes=Buffer.alloc(8); bytes.writeBigUInt64LE(BigInt(value)); return bytes }
+const filename=Buffer.from('notes.chart'), chartBytes=Buffer.from(chartText)
+const baseHeader=Buffer.concat([Buffer.from('SNGPKG'),Buffer.from([1,0,0,0]),Buffer.alloc(16),uint64(8),uint64(0),uint64(8+1+filename.length+16),uint64(1),Buffer.from([filename.length]),filename,uint64(chartBytes.length)])
+const headerLength=baseHeader.length+16
+const fixtureBytes=[...Buffer.concat([baseHeader,uint64(headerLength),uint64(chartBytes.length),Buffer.from(chartBytes.map((byte,index)=>byte^(index%256)))])]
 const errors = [], lookups = []
 let app
 async function launch(hash) {
@@ -51,7 +56,7 @@ async function launch(hash) {
   await app.evaluate(({app,dialog}, {library,fixtureBytes,userData}) => {
     if (app.getPath('userData') !== userData) throw new Error(`Unexpected user data path: ${app.getPath('userData')}`)
     dialog.showOpenDialog = async () => ({canceled:false,filePaths:[library]})
-    const https = require('node:https'), {PassThrough} = require('node:stream'), {EventEmitter} = require('node:events')
+    const https = process.getBuiltinModule('node:https'), {PassThrough} = process.getBuiltinModule('node:stream'), {EventEmitter} = process.getBuiltinModule('node:events')
     const originalGet = https.get
     globalThis.__bridgeTestDownloads = []
     https.get = function(url, options, callback) {
@@ -73,11 +78,11 @@ async function launch(hash) {
   page.setDefaultTimeout(20000)
   return page
 }
-async function waitFile(letter) {
-  const path = join(library,`Fixture-${letter}.sng`)
+async function waitFile(letter, folder=false) {
+  const path = folder ? join(library,`Fixture-${letter}`,'notes.chart') : join(library,`Fixture-${letter}.sng`)
   const end=Date.now()+30000
   while(Date.now()<end) {
-    try { assert.deepEqual([...await readFile(path)],fixtureBytes); return } catch {}
+    try { assert.deepEqual([...await readFile(path)],folder ? [...chartBytes] : fixtureBytes); return } catch {}
     await new Promise(resolve=>setTimeout(resolve,200))
   }
   throw new Error(`Download did not reach library: ${path}`)
@@ -111,14 +116,15 @@ try {
   // Old Bridge settings migration retains the folder, format, theme and volume.
   const settingsFile=join(userData,'bridge_data/settings.json')
   const settings=JSON.parse(await readFile(settingsFile,'utf8'))
-  settings.libraryPath=library; delete settings.libraryFolders
+  settings.libraryPath=library; settings.isSng=false; delete settings.libraryFolders
   await writeFile(settingsFile,JSON.stringify(settings))
-  page=await launch(hashes[3]); await waitFile('d')
+  page=await launch(hashes[3]); await waitFile('d',true)
+  assert.match(await readFile(join(library,'Fixture-d/song.ini'),'utf8'),/\[song\]/)
   const migrated=await page.evaluate(()=>window.electron.invoke.getSettings())
   assert.equal(migrated.libraryFolders[0].path,library)
-  assert.equal(migrated.isSng,true); assert.equal(migrated.volume,17)
-  assert.deepEqual((await readdir(library)).sort(),['a','b','c','d'].map(c=>`Fixture-${c}.sng`))
-  await writeFile('output/playwright/result.json',JSON.stringify({version:pkg.version,platform:process.platform,lookups,rendererErrors:errors,checks:['NSIS install and protocol registration','fork updater and license','cold start','first-run setup','multiple links','OS warm link','duplicate suppression','missing chart','legacy settings migration','native download to configured folder']},null,2))
+  assert.equal(migrated.isSng,false); assert.equal(migrated.volume,17)
+  assert.deepEqual((await readdir(library)).sort(),['Fixture-a.sng','Fixture-b.sng','Fixture-c.sng','Fixture-d'])
+  await writeFile('output/playwright/result.json',JSON.stringify({version:pkg.version,platform:process.platform,lookups,rendererErrors:errors,checks:['NSIS install and protocol registration','fork updater and license','cold start','first-run setup','multiple links','OS warm link','duplicate suppression','missing chart','legacy settings migration','native SNG and extracted-folder downloads']},null,2))
   assert.deepEqual(errors,[])
   console.log('Installed Bridge checks passed')
 } catch(error) {
