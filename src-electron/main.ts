@@ -117,7 +117,10 @@ async function createBridgeWindow() {
 	mainWindow.on('unmaximize', () => emitIpcEvent('minimized', undefined))
 	mainWindow.on('maximize', () => emitIpcEvent('maximized', undefined))
 
-	mainWindow.webContents.on('did-start-loading', () => { deepLinkRendererReady = false })
+	// In-app navigation keeps the renderer and its IPC listener alive.
+	mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+		if (isMainFrame && !isInPlace) deepLinkRendererReady = false
+	})
 	// Load angular app
 	await loadWindow()
 

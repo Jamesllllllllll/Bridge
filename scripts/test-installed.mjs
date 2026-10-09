@@ -54,7 +54,10 @@ async function launch(hash) {
   await app.context().route('https://clonehero.gitlab.io/**', route => route.fulfill({json:[]}))
   // Keep all downloaded bytes synthetic while exercising the real native queue,
   // filesystem checks, settings, file transfer, completion, and duplicate handling.
-  await app.evaluate(({app,dialog}, {library,fixtureBytes,userData}) => {
+  await app.evaluate(({app,dialog,BrowserWindow}, {library,fixtureBytes,userData}) => {
+    globalThis.__bridgeLinkEvents=[]
+    app.on('second-instance',(_,args)=>globalThis.__bridgeLinkEvents.push({type:'second-instance',args}))
+    BrowserWindow.getAllWindows()[0]?.webContents.on('did-start-navigation',(_,url,inPlace)=>globalThis.__bridgeLinkEvents.push({type:'navigation',url,inPlace}))
     if (app.getPath('userData') !== userData) throw new Error(`Unexpected user data path: ${app.getPath('userData')}`)
     dialog.showOpenDialog = async () => ({canceled:false,filePaths:[library]})
     const https = process.getBuiltinModule('node:https'), {PassThrough} = process.getBuiltinModule('node:stream'), {EventEmitter} = process.getBuiltinModule('node:events')
@@ -131,6 +134,7 @@ try {
   console.log('Installed Bridge checks passed')
 } catch(error) {
   if(app) {
+    console.error(JSON.stringify(await app.evaluate(()=>({events:globalThis.__bridgeLinkEvents,downloads:globalThis.__bridgeTestDownloads})),null,2))
     try { const page=await app.firstWindow(); await page.screenshot({path:'output/playwright/failure.png'}); await writeFile('output/playwright/failure.txt',await page.locator('body').innerText()) } catch {}
   }
   throw error
