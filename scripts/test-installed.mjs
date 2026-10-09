@@ -42,7 +42,7 @@ async function launch(hash) {
     const request = route.request(), input = request.postDataJSON() ?? {}
     const md5 = input.hash
     if (md5) lookups.push(md5)
-    const chart = {md5, chartId:hashes.indexOf(md5)+1, songId:null, groupId:1, versionGroupId:1, name:`Fixture-${md5?.[0]}`, artist:'Bridge test', charter:'Bridge test', album:null, genre:null, year:null, modifiedTime:'2026-01-01T00:00:00Z', hasVideoBackground:false, notesData:{effectiveLength:60000, trackHashes:[], noteCounts:{}, instruments:[]}, metadataIssues:[], folderIssues:[], chartIssues:[], diff_guitar:1, instrument:'guitar', charts:[], applicationUsername:'Test', applicationDriveId:'test', parentFolderId:'test', drivePath:'', internalPath:'', albumArtMd5:null}
+    const chart = {md5, chartId:hashes.indexOf(md5)+1, songId:null, groupId:1, versionGroupId:1, name:`Fixture-${md5?.[0]}`, artist:'Bridge test', charter:'Bridge test', album:null, genre:null, year:null, modifiedTime:'2026-01-01T00:00:00Z', hasVideoBackground:false, notesData:{effectiveLength:60000, trackHashes:[], noteCounts:[], maxNps:[], chartIssues:[], instruments:[]}, metadataIssues:[], folderIssues:[], chartIssues:[], diff_guitar:1, instrument:'guitar', charts:[], applicationUsername:'Test', applicationDriveId:'test', parentFolderId:'test', drivePath:'', internalPath:'', albumArtMd5:null}
     await route.fulfill({json:{data:hashes.includes(md5) ? [chart] : [], found:hashes.includes(md5) ? 1 : 0, page:1, out_of:1, search_time_ms:0}})
   })
   await app.context().route('https://clonehero.gitlab.io/**', route => route.fulfill({json:[]}))
